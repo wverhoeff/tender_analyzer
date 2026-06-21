@@ -22,7 +22,7 @@ class TenderSupervisor:
     - Phase 2: Regulatory Audit (Auditor) & Fee Estimation (Estimator)
     - Phase 3: Human-in-the-Loop Approval State
     """
-    def __init__(self, model_name: str = "meta-llama/llama-3-70b-instruct", db_dir: str = "./db/chroma"):
+    def __init__(self, model_name: str = "meta-llama/llama-3.3-70b-instruct", db_dir: str = "./db/chroma"):
         self.state_machine = TenderStateMachine()
         self.vector_store = TenderVectorStore(persist_directory=db_dir)
         self.search_engine = SimpleSearchEngine()

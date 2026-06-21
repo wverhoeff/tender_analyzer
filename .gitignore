@@ -1,0 +1,15 @@
+# Environments and config
+.env
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Local database
+db/
+
+# Local workspace test outputs
+workspace/simulated_*
+workspace/*_state.json
+workspace/*_phase*
