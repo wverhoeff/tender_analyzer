@@ -1,6 +1,9 @@
 import os
 import shutil
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
@@ -9,11 +12,7 @@ from typing import Dict, Any, Optional
 from agents.supervisor import TenderSupervisor
 from workspace.state_machine import TenderState
 
-app = FastAPI(
-    title="Competenz Tender Analyzer",
-    description="This tool analyzes civil engineering tenders for scope, risk, and fee estimates.",
-    version="1.0.0"
-)
+app = FastAPI(title="Competenz Tender Analyzer", description="This tool analyzes civil engineering tenders for scope, risk, and fee estimates.", version="1.0.0")
 
 # Initialize the supervisor
 db_dir = "./db/chroma"
@@ -46,12 +45,8 @@ def read_root():
         "docs": "/docs"
     }
 
-@app.post("/api/analyze", response_model=OnyxAnalyzeResponse)
+@app.post("/api/analyze", response_model=OnyxAnalyzeResponse, description="Analyzes civil engineering tenders to extract scope, identify risks, and compute fee estimates. Returns structured JSON with distinct keys for scope, risk, and fee estimate.", summary="Onyx Analyze Tender")
 def onyx_analyze_tender(request: OnyxAnalyzeRequest):
-    """
-    Analyzes civil engineering tenders to extract scope, identify risks, and compute fee estimates.
-    Returns structured JSON with distinct keys for scope, risk, and fee estimate.
-    """
     try:
         tender_id = f"onyx_{uuid.uuid4().hex}"
         # Run Phase 1 & Phase 2
@@ -67,12 +62,8 @@ def onyx_analyze_tender(request: OnyxAnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
-@app.post("/upload")
+@app.post("/upload", description="Upload a document to the ingestion directory and automatically re-index the RAG database.", summary="Upload File")
 async def upload_file(file: UploadFile = File(...)):
-    """
-    Upload a document (e.g. Markdown tender spec or contract guideline)
-    to the ingestion directory and automatically re-index the RAG database.
-    """
     if not file.filename.endswith((".md", ".txt")):
         raise HTTPException(status_code=400, detail="Only .md or .txt files are supported for ingestion.")
 
@@ -92,12 +83,8 @@ async def upload_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save and ingest file: {str(e)}")
 
-@app.post("/analyze")
+@app.post("/analyze", description="Triggers Phase 1 and Phase 2 sequentially. Puts the workflow into Phase 3 waiting for human sign-off.", summary="Analyze Tender")
 def analyze_tender(request: AnalyzeRequest):
-    """
-    Triggers Phase 1 (Scope Extraction) and Phase 2 (Audit & Estimations) sequentially.
-    Puts the workflow into Phase 3 (Approval State) waiting for human sign-off.
-    """
     try:
         # Run Phase 1 & Phase 2
         final_state = supervisor.run_complete_workflow(
@@ -112,21 +99,15 @@ def analyze_tender(request: AnalyzeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
-@app.get("/status/{tender_id}")
+@app.get("/status/{tender_id}", description="Check the current workflow phase and view intermediate markdown reports.", summary="Get Tender Status")
 def get_tender_status(tender_id: str):
-    """
-    Check the current workflow phase and view intermediate markdown reports.
-    """
     state = supervisor.state_machine.load_state(tender_id)
     if not state:
         raise HTTPException(status_code=404, detail=f"Tender analysis run '{tender_id}' not found.")
     return state
 
-@app.post("/approve/{tender_id}")
+@app.post("/approve/{tender_id}", description="Submit approval or trigger a rollback/revision based on manual review.", summary="Approve Tender Step")
 def approve_tender_step(tender_id: str, request: ApprovalRequest):
-    """
-    Submit approval or trigger a rollback/revision based on manual review.
-    """
     try:
         updated_state = supervisor.run_phase_3_approval(
             tender_id=tender_id,
