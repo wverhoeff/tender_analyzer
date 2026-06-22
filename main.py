@@ -1,5 +1,6 @@
 import os
 import shutil
+import uuid
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
@@ -9,8 +10,8 @@ from agents.supervisor import TenderSupervisor
 from workspace.state_machine import TenderState
 
 app = FastAPI(
-    title="Civil Engineering Tender Analyzer",
-    description="Multi-agent backend using OpenRouter Llama-3 to analyze New Zealand consultancy tenders.",
+    title="Competenz Tender Analyzer",
+    description="This tool analyzes civil engineering tenders for scope, risk, and fee estimates.",
     version="1.0.0"
 )
 
@@ -25,6 +26,14 @@ class AnalyzeRequest(BaseModel):
     tender_id: str
     raw_text: str
 
+class OnyxAnalyzeRequest(BaseModel):
+    tender_text: str
+
+class OnyxAnalyzeResponse(BaseModel):
+    extracted_scope: str
+    identified_risks: str
+    fee_estimate: str
+
 class ApprovalRequest(BaseModel):
     approved: bool
     feedback: Optional[str] = ""
@@ -33,9 +42,30 @@ class ApprovalRequest(BaseModel):
 def read_root():
     return {
         "status": "online",
-        "service": "Civil Engineering Consultancy Tender Analyzer API",
+        "service": "Competenz Tender Analyzer API",
         "docs": "/docs"
     }
+
+@app.post("/api/analyze", response_model=OnyxAnalyzeResponse)
+def onyx_analyze_tender(request: OnyxAnalyzeRequest):
+    """
+    Analyzes civil engineering tenders to extract scope, identify risks, and compute fee estimates.
+    Returns structured JSON with distinct keys for scope, risk, and fee estimate.
+    """
+    try:
+        tender_id = f"onyx_{uuid.uuid4().hex}"
+        # Run Phase 1 & Phase 2
+        final_state = supervisor.run_complete_workflow(
+            tender_id=tender_id,
+            raw_tender_text=request.tender_text
+        )
+        return OnyxAnalyzeResponse(
+            extracted_scope=final_state.scope_extraction_md,
+            identified_risks=final_state.audit_report_md,
+            fee_estimate=final_state.fee_estimation_md
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Workflow execution failed: {str(e)}")
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
