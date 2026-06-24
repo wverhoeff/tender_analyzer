@@ -4,7 +4,9 @@ import uuid
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
 
@@ -13,6 +15,19 @@ from agents.supervisor import TenderSupervisor
 from workspace.state_machine import TenderState
 
 app = FastAPI(title="Competenz Tender Analyzer", description="This tool analyzes civil engineering tenders for scope, risk, and fee estimates.", version="1.0.0")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    body_str = body.decode('utf-8')
+    print("=== VALIDATION ERROR DETECTED ===")
+    print(f"Raw Request Body: {body_str}")
+    print(f"Validation Details: {exc.errors()}")
+    print("=================================")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": body_str}
+    )
 
 # Initialize the supervisor
 db_dir = "./db/chroma"
